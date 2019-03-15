@@ -36,7 +36,7 @@ Definition first_index {A}
                                  | None => False end }
                          + {Forall (fun e => ~P e) l}.
 Proof.
-  (* right index *)
+  (* right fold *)
   induction l as [|next tail_l IHl]; auto.
   destruct (P_dec next) as [?|not_P_next].
   - left. exists O. Reconstr.scrush.
@@ -45,28 +45,35 @@ Proof.
       left. exists (S found_n). Reconstr.scrush.
     + right. Reconstr.scrush.
 Restart.
+  (* left fold *)
   pose (ind_type := {rec : ((list A) * nat) | Forall (fun e => ~P e) (firstn (snd rec) l) /\ (fst rec) = skipn (snd rec) l }).
   pose (Wfr := Wf_nat.well_founded_ltof ind_type (fun e => length (fst (proj1_sig e)))).
   assert (start : ind_type). { exists (l, O). Reconstr.scrush. }
   refine (well_founded_induction_type Wfr (fun _ => _) _ start).
   clear start.
   intros initial.
-  remember initial as initial_copy.
   destruct initial as [initial_existential initial_prop].
   destruct initial_existential as [initial_list initial_counter].
+  destruct initial_prop as [first_prop fst_eq].
   destruct initial_list as [|initial_list_head initial_list_tail].
-  - intros. right. admit. (* CVC4 says it's correct, but hammer can't reconstruct *)
+  - intros. right. simpl in *.
+    rewrite <- (firstn_skipn initial_counter l).
+    rewrite <- fst_eq. rewrite app_nil_r. auto.
   - destruct (P_dec initial_list_head).
     + intros. left. exists initial_counter.
-      pose (hd_skip l initial_counter). admit. (* same *)
+      pose (head_eq_nth := hd_skip l initial_counter).
+      simpl in *.
+      rewrite <- head_eq_nth.
+      rewrite <- fst_eq. auto.
     + intros rec. refine (rec ?[next] _).
       [next]:{ unfold ind_type. exists (initial_list_tail, S initial_counter).
-               pose (hd_skip l initial_counter). split.
-               - simpl in initial_prop. simpl snd. pose (first_add l initial_counter).
-                 rewrite e0. rewrite <- e. destruct initial_prop. rewrite <- e1. simpl.
-                 destruct (Forall_last (firstn initial_counter l) (fun e => ~P e) initial_list_head).
-                 apply H. auto.
-               - simpl fst. simpl snd. destruct initial_prop. simpl in e0.
+               pose (head_eq_nth := hd_skip l initial_counter). split.
+               - simpl snd.
+                 simpl in fst_eq.
+                 destruct (Forall_last (firstn initial_counter l) (fun e => ~P e) initial_list_head) as [H _].
+                 rewrite (first_add l initial_counter). rewrite <- (hd_skip l initial_counter). rewrite <- fst_eq.
+                 auto.
+               - simpl fst. simpl snd.
                  rewrite skip_one with l initial_list_tail initial_list_head initial_counter; auto. }
       Reconstr.scrush.
-Admitted.
+Defined.
