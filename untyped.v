@@ -1,6 +1,7 @@
 From Hammer Require Import Hammer.
 Require Vector Strings.String.
 Require Import List.
+From Lambda Require Import first_index_foldl.
 
 Inductive AST :=
   | Name : String.string -> AST
@@ -8,60 +9,9 @@ Inductive AST :=
   (* parameter, then the term under abstraction *)
   | Application : AST -> AST -> AST
   (* function, then argument *)
-. 
+.
 
 Definition NameList := list (String.string).
-
-(* get the first index of a list satisfying a decidable property P *)
-Definition first_index {A} (l : list A)
-                           (P : A -> Prop)
-                           (P_dec : forall e, {P e} + {~P e})
-                           : {n : nat
-                             | Forall (fun e => ~ P e) (firstn n l)
-                               /\ (match (nth_error l n) with
-                                   | Some e => P e /\ n < length l
-                                   | None => n = length l end)}.
-Proof.
- pose (fo := fold_left
-               (fun (i : (prod bool nat)) next_elem =>
-                 if (fst i)
-                 then i
-                 else (if P_dec next_elem
-                       then (true, (snd i))
-                       else (false, S (snd i))))).
- assert (true_drops : forall li i, snd (fo li (true, i)) = i).
- { intros li. induction li; auto. }
- assert (snd_S : forall li i,
-            (snd (fo li (false, S i))) = S (snd (fo li (false, i)))).
- { intros li. induction li; auto. Reconstr.scrush. }
- exists (snd (fo l (false, 0))).
- induction l.
- - simpl; auto.
- - split.
-   + destruct (Forall_forall
-                (fun e => ~ P e)
-                (firstn (snd (fo l (false, 0))) l))
-              as [F_f _].
-     destruct IHl as [IH_notP IH_last].
-     pose (x_in_first := F_f IH_notP).
-     destruct (Forall_forall
-                (fun e : A => ~ P e)
-                (firstn (snd (fo (a :: l) (false, 0))) (a :: l)))
-              as [_ g].
-     apply g. simpl.
-     intros x x_in.
-     destruct (P_dec a).
-     * rewrite true_drops in x_in. destruct x_in.
-     * pose (f_n_cons := firstn_cons (snd (fo l (false, 0))) a l).
-       rewrite snd_S in x_in. rewrite f_n_cons in x_in.
-       destruct x_in; Reconstr.scrush.
-   + simpl.
-     destruct (P_dec a).
-     * rewrite true_drops.
-       Reconstr.reasy (@Coq.Arith.PeanoNat.Nat.lt_0_succ) (@Coq.Lists.List.nth_error).
-     * rewrite snd_S. simpl.
-       Reconstr.rcrush (@Coq.Lists.List.nth_error_Some, @Coq.Arith.Lt.lt_n_S) (@Coq.Init.Datatypes.snd).
-Defined.
 
 Inductive NamelessAST (abs_level : nat) :=
   | Reference : {n : nat | n < abs_level} -> NamelessAST abs_level
@@ -76,9 +26,11 @@ Definition search_namelist (l : NameList) (name : String.string) : option {n | n
 Proof.
  pose (cmp_fun := fun e => name = e).
  pose (cmp_dec := String.string_dec name).
- destruct (first_index l cmp_fun cmp_dec) as [n n_prop].
- destruct (nth_error l n).
- - refine (Some _). exists n. Reconstr.scrush.
+ destruct (first_index l cmp_fun cmp_dec) as [found|not_found].
+ - refine (Some _). exists (proj1_sig found).
+   destruct found as [found_n found_prop]; simpl.
+   destruct (Nat.ltb found_n (length l)) eqn:l_ltb;
+   Reconstr.rsimple (@Coq.Lists.List.nth_error_Some) (@NameList).
  - exact None.
 Defined.
 
