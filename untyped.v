@@ -72,14 +72,12 @@ Definition Applicative := {abs_level
 Definition ProgramState : Set :=
   Closure *
   (* term to evaluate *)
-  {continuation_length
-   & Vector.t
-     (* Continuations *)
-       (Closure
-        (* we are evaluating the operator, the continuation holds the operand *)
-        + Applicative)
-        (* we are evaluating the operand, this is the evaluated operator*)
-       continuation_length}.
+  (list
+    (* Continuations *)
+      (Closure
+      (* we are evaluating the operator, the continuation holds the operand *)
+      + Applicative)).
+      (* we are evaluating the operand, this is the evaluated operator*)
 
 Definition load_ast : NamelessAST O -> ProgramState.
 Proof.
@@ -89,12 +87,12 @@ Proof.
     + constructor. exists O. split.
       * constructor 2. exact abstracted_term.
       * constructor 1.
-    + exists O. constructor 1.
+    + constructor 1.
   - constructor.
     + constructor. exists O. split.
       * exact function.
       * constructor 1.
-    + exists 1. constructor 2.
+    + constructor 2.
       * left. constructor. exists O. split.
         { exact argument. }
         { constructor 1. }
@@ -114,23 +112,22 @@ Proof.
   - (* replace the reference with the element at its index *)
     constructor.
     + exact (Vector.nth_order evaluating_environment (proj2_sig evaluating_reference)).
-    + exact continuation. 
+    + exact continuation.
   - (* this is a lambda; see what's in the continuation *)
-    destruct continuation as [continuation_length continuation_contents].
-    destruct continuation_contents as [|continuation_head continuation_tail_length continuation_tail].
+    destruct continuation as [|continuation_head continuation_tail].
     + (* the continuation is empty, the program has halted *)
       constructor.
       * constructor. exists evaluating_abs_level. split.
         { constructor 2. exact evaluating_abstracted_term. }
         { exact evaluating_environment. }
-      * exists O. constructor 1.
+      * constructor 1.
     + destruct continuation_head as [continuation_operand
                                     |continuation_applicative].
       * (* put the evaluated operator in the continuation and prepare to
            evaluate the operand *)
         constructor.
         { exact continuation_operand. }
-        { exists (S continuation_tail_length). constructor 2.
+        { constructor 2.
           - right. unfold Applicative. exists evaluating_abs_level.
             split.
             + exact evaluating_abstracted_term.
@@ -148,17 +145,16 @@ Proof.
               * constructor 2. exact evaluating_abstracted_term.
               * exact evaluating_environment.
             + exact applicative_env. }
-        exists continuation_tail_length. exact continuation_tail.
+        exact continuation_tail.
   - (* an application; put the argument on the stack and prepare to evaluate
        the operator *)
     constructor.
     + constructor. exists evaluating_abs_level. split.
       * exact evaluating_function.
       * exact evaluating_environment.
-    + destruct continuation as [continuation_length continuation_contents].
-      exists (S continuation_length). constructor 2.
+    + constructor 2.
       * left. constructor. exists evaluating_abs_level. split.
         { exact evaluating_argument. }
         { exact evaluating_environment. }
-      * exact continuation_contents.
+      * exact continuation.
 Defined.
