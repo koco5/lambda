@@ -46,23 +46,30 @@ Module GraphLink (L:Orders.UsualOrderedType) <: Orders.UsualOrderedType.
         | source_comp => source_comp end end.
  Lemma compare_spec (a b : t) : CompareSpec (eq a b) (lt a b) (lt b a) (compare a b).
  Proof.
-   unfold eq. unfold lt.
    Module N_Order_Facts := OrdersFacts.OrderedTypeFacts (BinNat.N).
    Module L_Order_Facts := OrdersFacts.OrderedTypeFacts (L).
    refine (match a,b with
            | (a_source, a_dest, a_label),
              (b_source, b_dest, b_label) => _ end).
-   pose (n_eq := N_Order_Facts.compare_eq).
-   pose (l_eq := L_Order_Facts.compare_eq).
+   simpl.
    destruct (BinNat.N.compare a_source b_source) eqn:source_cmp.
    - destruct (BinNat.N.compare a_dest b_dest) eqn:dest_cmp.
      + destruct (L.compare a_label b_label) eqn:label_cmp.
-       * pose (l_rewr := l_eq _ _ label_cmp).
-         pose (source_rewr := n_eq _ _ source_cmp).
-         pose (dest_rewr := n_eq _ _ dest_cmp).
-         rewrite l_rewr; rewrite source_rewr; rewrite dest_rewr.
-         Reconstr.scrush.
-       * 
+       * constructor 1.
+	       Reconstr.rsimple (@Coq.NArith.BinNat.N.compare_eq, @GraphLink.L_Order_Facts.compare_eq) (@GraphLink.eq, @Coq.NArith.BinNatDef.N.t).
+       * constructor 2.
+	       Reconstr.rcrush (@Coq.NArith.BinNat.N.compare_eq, @GraphLink.L_Order_Facts.compare_lt_iff) (@Coq.NArith.BinNatDef.N.t).
+       * constructor 3.
+	       Reconstr.rcrush (@GraphLink.L_Order_Facts.compare_gt_iff, @Coq.NArith.BinNat.N.compare_eq) (@Coq.NArith.BinNatDef.N.t).
+     + constructor 2.
+	     Reconstr.rcrush (@Coq.NArith.BinNat.N.compare_eq) (@Coq.NArith.BinNat.N.lt, @Coq.NArith.BinNatDef.N.t).
+     + constructor 3.
+	     Reconstr.rcrush (@Coq.NArith.BinNat.N.compare_eq, @Coq.NArith.BinNat.N.gt_lt) (@Coq.NArith.BinNat.N.gt, @Coq.NArith.BinNatDef.N.t).
+   - constructor 2.
+     Reconstr.scrush.
+   - constructor 3.
+	   Reconstr.reasy (@Coq.NArith.BinNat.N.gt_lt) (@Coq.NArith.BinNat.N.gt, @Coq.NArith.BinNatDef.N.t).
+ Defined.
    
  Definition eq_dec (a b : t) : {eq a b} + {eq a b -> False}.
  Proof.
