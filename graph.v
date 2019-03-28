@@ -86,5 +86,17 @@ Module GraphLink (L:Orders.UsualOrderedType) <: Orders.UsualOrderedType.
  Defined.
 End GraphLink.
 
-(*Module Graph (L:Orders.UsualOrderedType).
- Print Orders.UsualOrderedType.*)
+Require MSets.MSetRBT.
+
+Module GraphDef (L:Orders.UsualOrderedType).
+  Module MLink := GraphLink L.
+  Module RawGraph := MSetRBT.Make MLink.
+  Section G.
+    Variable max : BinNat.N.t.
+    Definition is_valid_link (l : MLink.t) :=
+      match l with
+        | (source, dest, _) => BinNat.N.lt source max
+                               /\ BinNat.N.lt dest max end.
+    Definition Graph := {g : RawGraph.t | RawGraph.For_all is_valid_link g}.
+  End G.
+End GraphDef.
